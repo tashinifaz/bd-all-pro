@@ -8,14 +8,40 @@ Login (single owner) · Dashboard · Products/categories + search (incl. serial/
 Suppliers, purchases, partial payments, landed-cost allocation, weighted-average costing, purchase returns · Orders (WhatsApp/manual), COD, courier tracking, settlement, cancel, partial/full returns with inspection ·
 Repair tickets with owner approval before resale · Expenses · Cash/Bank/MFS accounts, transfers, cashbook · P&L, cash flow, inventory value, receivables/payables · CSV exports · audit log · `/health` · duplicate-submit protection.
 
-## Test it locally (optional)
+## Run it locally
+Needs Node 18+ and a PostgreSQL database (local or a free Render/Neon one).
 ```bash
 npm install
-cp .env.example .env        # edit values
-export $(grep -v '^#' .env | xargs)   # Windows: set the variables manually
-npm start                   # opens on http://localhost:3000
+cp .env.example .env        # then edit the values
+export $(grep -v '^#' .env | xargs)   # Windows: set the variables manually (or use a .env loader of your choice)
+npm run dev                 # auto-restarts on change; opens on http://localhost:3000
 ```
-Needs Node 18+ and a PostgreSQL database. Tables are created automatically on start.
+`npm start` is what Render runs. Tables and indexes are created automatically on start (`db/schema.sql` is additive and safe to re-run).
+
+### Environment variables (nothing else is needed)
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string (required) |
+| `SESSION_SECRET` | long random text; required when `NODE_ENV=production` |
+| `ADMIN_USER` / `ADMIN_PASSWORD` | create the owner account on first start only |
+| `PGSSL` | `1` for Render/hosted Postgres |
+| `SEED_DEMO` | `1` = demo products on first start; remove for real use |
+| `PORT` | set by Render automatically |
+
+## Using the app (short)
+- **Theme**: sun/moon button (top bar on phone, sidebar on desktop). Remembered on this device. Settings also has "Follow device".
+- **Menu**: desktop/tablet (>= 900px) has a left sidebar (collapse button at its bottom). Phones get a floating bottom bar: 4 pages + **More**.
+- **Change the bottom bar**: Settings > Bottom bar. Pick 1-4 pages, reorder with the arrows, Save. It is saved on your account (follows you to every device). "Reset" restores Dashboard / Orders / Stock / Repairs. "More" is always the last item.
+- **Help**: the round **?** button on every page; Settings > Replay tour restarts the guided tour.
+- **Wording**: Bangla hints are short and meant to be reviewed by the owner. Edit them in `src/views.js` (`TITLE_BN`, `LABEL_BN`, `PAGES`, `PRIMARY`), `src/forms.js` (pop-up forms), `public/help.js` (`HELP`, `TOUR`).
+
+## How scanning works
+Every **Scan** button (purchase serials, new order, repair ticket, add product, products search) opens the rear camera in a full-screen layer.
+1. If the browser has `BarcodeDetector` (Chrome on Android, recent desktop Chrome/Edge) it is used directly; nothing extra is downloaded.
+2. Otherwise (iPhone Safari, Firefox) `/vendor/zxing.min.js` (~100 KB gzipped) is downloaded once, only at that moment.
+3. `public/scan.js` itself is downloaded only on the first Scan tap.
+Typing or a USB/Bluetooth scanner always works; scan is optional. `GET /api/serial/:code` (login required) tells the app if a code is a unit, a repair or a product.
+**Camera needs HTTPS** (or `localhost`). Render gives HTTPS automatically. On plain `http://192.168.x.x` the browser blocks the camera and the app shows a friendly message; typing still works.
 
 ## Step by step: GitHub + Render (free)
 
@@ -89,3 +115,9 @@ Also use Reports → CSV exports for regular business-data copies. To move hosts
 ## Known limits of this first version
 Serial status on customer *returns* is not auto-updated; product photos, CSV import, password-change screen and Excel export are not included (CSV export is). To change the owner password, delete the row in `users` and restart with a new `ADMIN_PASSWORD`.
 Not yet run against a live database in the build environment — follow the test checklist above and report any error.
+
+## Speed notes
+Assets are served from `/public` with a 7-day cache (URLs carry `?v=<file time>` so updates show immediately). Text responses and assets are gzip-compressed with Node's built-in `zlib` (`src/gzip.js`, no dependency). Core files: `app.css` ~15 KB, `app.js` ~19 KB. Lazy: `forms.css`, `scan.js`, `help.js`, `help.css`, `vendor/zxing.min.js`, `print.css` (print only), `login.css` (login page only).
+
+## Manual test list
+See `TESTING.md`.

@@ -1,6 +1,8 @@
 const { get, post, msg } = require('./web');
 const { page, token, table, opts } = require('./views');
 const { esc, taka, BUCKETS, num, int, move, audit, csv, fmtDT } = require('./lib');
+const serialsOf = t => (t || '').split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+const SCAN = (k, extra = '') => `<button type=button class="btn gray sc" data-scan="${k}" ${extra}>Scan · স্ক্যান</button>`;
 
 const BL = { good: 'Good', reserved: 'Reserved', needs_repair: 'Needs repair', under_repair: 'Under repair', awaiting_approval: 'Awaiting approval', damaged: 'Damaged' };
 async function stockRows(db, where = 'TRUE', params = []) {
@@ -12,17 +14,17 @@ async function stockRows(db, where = 'TRUE', params = []) {
 module.exports = app => {
   app.get('/products', get(async (req, db) => {
     const s = (req.query.q || '').trim(), cat = req.query.cat || '';
-    const rows = await stockRows(db, `(p.archived=false OR $3) AND ($1='' OR p.name ILIKE '%'||$1||'%' OR p.sku ILIKE '%'||$1||'%' OR p.brand ILIKE '%'||$1||'%' OR p.model ILIKE '%'||$1||'%'
+    const rows = await stockRows(db, `(p.archived=false OR $3) AND ($1='' OR p.name ILIKE '%'||$1||'%' OR p.sku ILIKE '%'||$1||'%' OR p.brand ILIKE '%'||$1||'%' OR p.model ILIKE '%'||$1||'%' OR p.barcode=$1
       OR EXISTS(SELECT 1 FROM product_serials s WHERE s.product_id=p.id AND s.serial ILIKE '%'||$1||'%')) AND ($2='' OR p.category_id::text=$2)`, [s, cat, req.query.arch === '1']);
     const cols = [['SKU', 'sku'], ['Name', 'name'], ['Category', 'cat'], ['Good', 'good'], ['Total units', 'total'], ['Avg cost', 'avg_cost'], ['Price', 'price'], ['Min', 'min_stock']];
     if (req.query.csv) return { csv: csv(cols, rows), name: 'products' };
     const cats = (await db.query('SELECT * FROM categories ORDER BY name')).rows;
     const list = rows.map(r => ({ ...r, sku: `<a href="/products/${r.id}">${esc(r.sku)}</a>`, name: esc(r.name) + (r.archived ? ' (archived)' : '') + (r.serialized ? ' 🔢' : ''),
       good: r.good < r.min_stock ? `<b class=warn>${r.good} ⚠</b>` : r.good, avg_cost: taka(r.avg_cost), price: taka(r.price) }));
-    return page('Products', `<form method=get class=card><div class=row><div><label>Search name / SKU / brand / model / serial</label><input name=q value="${esc(s)}"></div>
+    return page('Products', `<form method=get class=card><div class=row><div><label>Search name / SKU / brand / model / serial</label><input name=q value="${esc(s)}" placeholder="Type or scan · লিখুন বা স্ক্যান"> ${SCAN('search')}</div>
       <div><label>Category</label><select name=cat><option value="">All</option>${opts(cats, 'id', 'name', cat)}</select></div></div><button>Search</button>
       <a class="btn gray" href="?q=${encodeURIComponent(s)}&cat=${cat}&csv=1">CSV</a> <a class="btn gray" href="?arch=1">Show archived</a></form>
-      <div class=card>${table(cols.map(c => c), list, ['sku', 'name', 'good'])}</div>
+      <div class=card>${table(cols.map(c => c), list, ['sku', 'name', 'good'], { st: 1, empty: ['No products yet', 'এখনো কোনো পণ্য নেই', '/products', 'product', '+ Add product', 'পণ্য যোগ করুন'] })}</div>
       <div class=card><h3>Add product</h3>${productForm({}, cats, '/products')}</div>`, msg(req));
   }));
   const productForm = (p, cats, action) => `<form method=post action="${action}">${token()}<div class=row>
@@ -31,13 +33,26 @@ module.exports = app => {
     <div><label>Category</label><select name=category_id>${opts(cats, 'id', 'name', p.category_id)}</select></div>
     <div><label>Default cost</label><input type=number step=0.01 min=0 name=default_cost value="${p.default_cost ?? 0}"></div>
     <div><label>Selling price</label><input type=number step=0.01 min=0 name=price value="${p.price ?? 0}"></div>
-    <div><label>Low-stock threshold</label><input type=number min=0 name=min_stock value="${p.min_stock ?? 0}"></div></div>
+    <div><label>Low-stock threshold</label><input type=number min=0 name=min_stock value="${p.min_stock ?? 0}"></div>
+    <div><label>Barcode · বারকোড</label><input name=barcode data-noenter value="${esc(p.barcode)}" placeholder="Optional"> ${SCAN('barcode')}</div></div>
+    ${p.id ? '' : `<div class=row><div><label>Opening quantity · শুরুর স্টক</label><input type=number min=0 name=open_qty value=0></div></div><label>Opening serials / IMEI (one per line, tracked items) · শুরুর সিরিয়াল</label><textarea name=open_serials rows=2></textarea>${SCAN('serials', 'data-t=open_serials data-q=open_qty')}`}
     <label>Description</label><textarea name=description rows=2>${esc(p.description)}</textarea>
     <label><input type=checkbox name=serialized value=1 style="width:auto" ${p.serialized ? 'checked' : ''}> Track serial / IMEI per unit</label><br><br><button>Save</button></form>`;
-  const fields = b => [b.sku.trim(), b.name.trim(), b.brand, b.model, int(b.category_id) || null, b.description, num(b.default_cost), num(b.price), int(b.min_stock), !!b.serialized];
+  const fields = b => [b.sku.trim(), b.name.trim(), b.brand, b.model, int(b.category_id) || null, b.description, num(b.default_cost), num(b.price), int(b.min_stock), !!b.serialized, (b.barcode || '').trim() || null];
   app.post('/products', post('/products', async (req, c) => {
-    await c.query(`INSERT INTO products(sku,name,brand,model,category_id,description,default_cost,price,min_stock,serialized,avg_cost) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$7)`, fields(req.body));
-    await audit(c, 'product_add', req.body.sku); return { ok: 'Product added' };
+    const r = (await c.query(`INSERT INTO products(sku,name,brand,model,category_id,description,default_cost,price,min_stock,serialized,barcode,avg_cost) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$7) RETURNING id,default_cost`, fields(req.body))).rows[0];
+    await audit(c, 'product_add', req.body.sku);
+    // opening stock (Phase 4): same move() + audit path as purchases / adjustments
+    const sers = serialsOf(req.body.open_serials), ser = !!req.body.serialized; let q = int(req.body.open_qty);
+    if (ser && sers.length && !q) q = sers.length;
+    if (q > 0) {
+      if (ser && new Set(sers).size !== q) throw new Error(`Opening stock: enter exactly ${q} unique serial/IMEI values (you have ${new Set(sers).size})`);
+      const ref = 'OPEN-' + r.id;
+      if (ser) for (const s of sers) await c.query('INSERT INTO product_serials(product_id,serial,ref) VALUES($1,$2,$3)', [r.id, s, ref]);
+      await move(c, r.id, null, 'good', q, 'opening', ref, 'Opening stock', r.default_cost);
+      await audit(c, 'opening_stock', `${req.body.sku} x${q}`);
+    }
+    return { ok: q > 0 ? `Product added with ${q} in stock` : 'Product added' };
   }));
   app.get('/products/:id', get(async (req, db) => {
     const [p] = await stockRows(db, 'p.id=$1', [req.params.id]); if (!p) return page('Not found', '');
@@ -52,7 +67,7 @@ module.exports = app => {
   }));
   // Editing the default price never touches historical order/purchase lines (they store their own prices/costs).
   app.post('/products/:id', post(req => '/products/' + req.params.id, async (req, c) => {
-    await c.query(`UPDATE products SET sku=$1,name=$2,brand=$3,model=$4,category_id=$5,description=$6,default_cost=$7,price=$8,min_stock=$9,serialized=$10 WHERE id=${int(req.params.id)}`, fields(req.body));
+    await c.query(`UPDATE products SET sku=$1,name=$2,brand=$3,model=$4,category_id=$5,description=$6,default_cost=$7,price=$8,min_stock=$9,serialized=$10,barcode=$11 WHERE id=${int(req.params.id)}`, fields(req.body));
     return { ok: 'Updated' };
   }));
   app.post('/products/:id/archive', post(req => '/products/' + req.params.id, async (req, c) => {

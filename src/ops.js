@@ -1,5 +1,5 @@
 const { get, post, msg } = require('./web');
-const { page, token, table, opts, rangeForm, dateRange } = require('./views');
+const { page, token, table, opts, rangeForm, dateRange, bn } = require('./views');
 const { esc, taka, num, int, move, audit, accTxn, csv, today, fmtDT } = require('./lib');
 const CATS = ['advertising', 'courier', 'packaging', 'repair', 'salary', 'website/hosting', 'payment fees', 'transport', 'other'];
 const BK = { 'Needs Repair': 'needs_repair', 'Sent for Repair': 'under_repair', 'Awaiting Return-to-Stock Approval': 'awaiting_approval' };
@@ -16,7 +16,7 @@ module.exports = app => {
     if (req.query.csv) return { csv: csv(cols, rows), name: 'expenses' };
     const accs = (await db.query('SELECT * FROM financial_accounts ORDER BY id')).rows, tot = rows.reduce((a, x) => a + x.amount, 0);
     return page('Expenses', rangeForm(req.query, '/expenses', `<div><label>Category</label><select name=cat><option value="">All</option>${CATS.map(x => `<option ${x === cat ? 'selected' : ''}>${x}</option>`).join('')}</select></div>`) +
-      `<div class=card><b>Total ${taka(tot)}</b>${table(cols, rows.map(x => ({ ...x, amount: taka(x.amount) })))}</div><div class=card><h3>Add expense</h3><form method=post action="/expenses">${token()}<div class=row>
+      `<div class=card><b>Total ${taka(tot)}</b>${table(cols, rows.map(x => ({ ...x, amount: taka(x.amount) })), [], { st: 1, empty: ['No expenses yet', 'এখনো কোনো খরচ নেই', '/expenses', 'expense', '+ Expense', 'খরচ যোগ করুন'] })}</div><div class=card><h3>Add expense</h3><form method=post action="/expenses">${token()}<div class=row>
       <div><label>Date</label><input type=date name=date value="${today()}"></div><div><label>Category</label><select name=category>${CATS.map(x => `<option>${x}</option>`).join('')}</select></div>
       <div><label>Amount</label><input type=number step=0.01 min=0.01 name=amount required></div><div><label>Paid from</label><select name=account_id>${opts(accs)}</select></div>
       <div><label>Payee</label><input name=payee></div><div><label>Note</label><input name=note></div></div><button>Save</button></form></div>`, msg(req));
@@ -34,9 +34,9 @@ module.exports = app => {
     if (req.query.csv) return { csv: csv(cols, tx), name: 'cashbook' };
     return page('Accounts & cashbook', `<div class=card><p class=k>Recorded balances only. Transfers are not income or expense.</p>${table([['Account', 'name'], ['Type', 'kind'], ['Balance', 'balance']], bal.map(b => ({ ...b, balance: taka(b.balance) })))}</div>` +
       rangeForm(req.query, '/accounts', `<div><label>Account</label><select name=acc><option value="">All</option>${opts(bal, 'id', 'name', acc)}</select></div>`) +
-      `<div class=card>${table(cols, tx.map(x => ({ ...x, amount: taka(x.amount) })))}</div>
-      <div class=card><h3>Transfer</h3><form method=post action="/accounts/transfer">${token()}<div class=row><div><label>From</label><select name=from>${opts(bal)}</select></div><div><label>To</label><select name=to>${opts(bal)}</select></div>
-      <div><label>Amount</label><input type=number step=0.01 min=0.01 name=amount required></div><div><label>Date</label><input type=date name=date value="${today()}"></div></div><button>Transfer</button></form></div>
+      `<div class=card>${table(cols, tx.map(x => ({ ...x, amount: taka(x.amount) })), [], { st: 1 })}</div>
+      <div class=card id=transfer><h3>Transfer</h3><form method=post action="/accounts/transfer">${token()}<div class=row><div><label>From</label><select name=from>${opts(bal)}</select></div><div><label>To</label><select name=to>${opts(bal)}</select></div>
+      <div><label>Amount</label><input type=number step=0.01 min=0.01 name=amount required></div><div><label>Date</label><input type=date name=date value="${today()}"></div></div><button>${bn('Transfer', 'টাকা সরান')}</button></form></div>
       <div class=card><h3>Add account</h3><form method=post action="/accounts">${token()}<div class=row><div><label>Name</label><input name=name required></div><div><label>Type</label><select name=kind><option>cash</option><option>bank</option><option>mfs</option></select></div>
       <div><label>Opening balance</label><input type=number step=0.01 name=opening value=0></div></div><button>Add</button></form></div>`, msg(req));
   }));
@@ -53,7 +53,7 @@ module.exports = app => {
     if (req.query.csv) return { csv: csv(cols, rows), name: 'repairs' };
     const prods = (await db.query('SELECT id,sku,name FROM products WHERE archived=false ORDER BY name')).rows;
     return page('Repairs', `<a class="btn gray" href="?csv=1">CSV</a> ${['Needs Repair', 'Sent for Repair', 'Awaiting Return-to-Stock Approval'].map(s => `<a class="btn gray" href="?status=${encodeURIComponent(s)}">${s}</a>`).join(' ')}
-      <div class=card>${table(cols, rows.map(r => ({ ...r, ref: `<a href="/repairs/${r.id}">${esc(r.ref)}</a>`, cost: taka(r.cost) })), ['ref'])}</div>
+      <div class=card>${table(cols, rows.map(r => ({ ...r, ref: `<a href="/repairs/${r.id}">${esc(r.ref)}</a>`, cost: taka(r.cost) })), ['ref'], { st: 1, empty: ['No repairs yet', 'এখনো কোনো মেরামত নেই', '/repairs', 'repair', '+ New repair', 'নতুন মেরামত'] })}</div>
       <div class=card><h3>New repair ticket</h3><form method=post action="/repairs">${token()}<div class=row><div><label>Product</label><select name=product_id>${opts(prods, 'id', p => p.sku + ' · ' + p.name)}</select></div>
       <div><label>Qty</label><input type=number min=1 name=qty value=1></div><div><label>Unit is currently in</label><select name=source><option value=good>Good stock</option><option value=needs_repair>Already in Needs-repair</option></select></div>
       <div><label>Serial/IMEI (optional)</label><input name=serial></div><div><label>Technician / shop</label><input name=shop></div><div><label>Warranty details</label><input name=warranty></div></div>

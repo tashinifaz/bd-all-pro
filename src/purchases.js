@@ -17,7 +17,7 @@ module.exports = app => {
       <div><label>Qty</label><input type=number min=0 name=qty></div><div><label>Unit cost</label><input type=number step=0.01 min=0 name=unit_cost></div>
       <div><label>Serial/IMEI (if tracked, one per line)</label><textarea name=serials rows=1></textarea></div></div>`).join('');
     const list = rows.map(x => ({ ...x, id: `<a href="/purchases/${x.id}">PUR-${x.id}</a>`, total: taka(x.total), paid: taka(x.paid), credit: taka(x.credit), due: taka(x.due) }));
-    return page('Purchases & suppliers', rangeForm(req.query, '/purchases') + `<div class=card>${table(cols, list, ['id'])}</div>
+    return page('Purchases & suppliers', rangeForm(req.query, '/purchases') + `<div class=card>${table(cols, list, ['id'], { st: 1, empty: ['No purchases yet', 'এখনো কোনো কেনা নেই', '/purchases', 'purchase', '+ New purchase', 'নতুন কেনা'] })}</div>
       <div class=card><h3>New purchase invoice</h3><form method=post action="/purchases">${token()}<div class=row>
       <div><label>Supplier</label><select name=supplier_id>${opts(sups)}</select></div><div><label>Invoice no.</label><input name=invoice_no></div>
       <div><label>Date</label><input type=date name=pdate value="${today()}"></div></div>${line}<div class=row>

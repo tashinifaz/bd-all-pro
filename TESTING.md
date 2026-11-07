@@ -1,0 +1,23 @@
+# TESTING — BD ALL PRO (manual checklist, ~20 minutes)
+Test on a real phone (or Chrome devtools at 360px) AND on a desktop. Open the browser console: there must be no red errors. Use demo data (`SEED_DEMO=1`) or add a few products first.
+
+1. **Health & login** — open `/health` (no login) -> `{"ok":true}`. Open `/` while logged out -> goes to `/login`. Wrong password -> red message. 6 wrong tries -> "Too many attempts". Correct login -> Dashboard.
+2. **Theme** — tap sun/moon. Colors switch (dark = gold, light = black/white). Reload: same theme, no flash. Check login page too. Settings > "Follow device" works.
+3. **Sidebar (desktop >= 900px)** — all pages listed; Collapse -> icons only; reload keeps it; current page highlighted.
+4. **Bottom bar (phone < 900px)** — floating bar: Dashboard, Orders, Stock, Repairs, More. "More" opens a sheet with every other page (Products, Purchases, Expenses, Accounts, Reports, Settings). Bar never hides content (scroll to page end).
+5. **Dashboard range** — Today / Week / Month / Custom (pick two dates). Reload: the range is remembered, cards do not jump. Orders card changes with range; other cards do not.
+6. **Dashboard popups** — tap each of the 8 cards: popup opens (bottom sheet on phone, centered on desktop), shows rows, "View all" link and a "+ New …" button. Close with outside tap / Esc / back.
+7. **Quick form: + New order** — Success: product, qty 1, customer name -> Save -> toast, cards refresh. Error: ask for more qty than in stock -> red message inside the form, everything typed is still there; fix and Save.
+8. **Quick form: + Expense** — Success with amount 100. Error: leave amount empty / 0 -> inline error, input kept.
+9. **Quick form: + Purchase** — Success: supplier, product, qty 5, cost, paid part. Error: qty 0 -> inline error, input kept. Stock page shows +5 Good; "Dues to pay" card = unpaid amount.
+10. **Quick forms: + Add product and Adjust stock** — Add product: new SKU saves; the same SKU again -> inline "Duplicate" error with input kept. Adjust stock: counted quantity + reason saves; empty reason -> inline error.
+11. **Scan on Android Chrome (HTTPS)** — New order > Scan: camera opens, scan a barcode/IMEI, it is added, "Type instead" works, Done closes, camera light goes off. Also try Purchase serials (continuous scan, qty follows count) and Repair ticket.
+12. **Scan on a browser without BarcodeDetector** (iPhone Safari or Firefox) — Scan opens; first time it loads the decoder (brief delay), then decodes. If the camera is denied, a friendly message shows and typing works. (Dev tools > Network: `/vendor/zxing.min.js` loads ONLY here, never on Chrome Android.)
+13. **Tour** — log in with a fresh account (or Settings > Replay tour): 6 steps, Next / Skip, card never off-screen. Does not appear again after finishing.
+14. **Help tips** — tap **?** on Dashboard, Orders, Stock, Repairs, Products, Purchases, Expenses, Accounts, Reports, Settings: a popup with English + Bangla text opens.
+15. **Settings bottom bar** — choose 4 pages, reorder, Save -> bar changes. 5th page is refused. Reset restores default. Log in from another browser: same bar.
+16. **Consistency pass (360px, both themes)** — on Orders, Products, Purchases, Repairs, Expenses, Stock, Accounts, Reports: primary button is in the page header (phone: wide button under the top bar), Bangla hints present, no sideways page scroll. Orders/Products/Purchases/Repairs/Expenses lists show as stacked cards. With no data, the page shows "No … yet" and a "+ New …" button that opens the form.
+17. **Full order flow** — New order (2 units, advance 200) -> Order page: Dispatch (courier + tracking) -> Deliver -> Record settlement (COD received, courier fee). Check: stock Good -> Reserved -> sold; "Dues to receive" card drops after settlement; Reports net sales/profit move; Accounts balance rises by the net payout.
+18. **Repair flow** — New repair from a Good unit -> Send -> Complete (cost) -> Approve return to stock. Pending repairs card follows each step; stock is sellable only after Approve.
+19. **Numbers cross-check (same data)** — Cash card = sum of balances on Accounts. Sellable card = sum of "Good" column on Stock (archived products excluded in both). Dues to pay card = sum of Supplier balances on Purchases. Dues to receive = COD of Dispatched/Delivered unsettled orders. Low stock card = rows with the warning on Products.
+20. **Security & print** — logged out: `/orders`, `/reports`, `/api/dash`, `/f/order`, `/api/serial/123`, `/settings` all redirect to login. Double-click Save on any form -> only one record. Print an order page: menus are hidden.

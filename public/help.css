@@ -1,0 +1,15 @@
+/* Lazy styles for help.js: help sheet, guided tour, Settings page */
+.hp p{margin:0 0 12px;line-height:1.45}.hp .bn{display:block;margin:2px 0 0}
+.tr{position:fixed;inset:0;z-index:70}.tb{position:absolute;inset:0}
+.th{position:absolute;border-radius:16px;box-shadow:0 0 0 100vmax rgba(0,0,0,.66);outline:2px solid var(--acc);pointer-events:none}
+.th.nt{inset:0;width:auto;height:auto;border-radius:0;box-shadow:none;outline:0;background:rgba(0,0,0,.66)}
+.tc{position:absolute;width:min(360px,calc(100% - 24px));padding:16px 16px 10px;background:var(--sf);color:var(--tx);border:1px solid var(--bd);border-radius:20px;box-shadow:var(--sh)}
+.tc h4{margin:2px 0 6px;font-size:18px}.tc p{margin:0 0 4px;line-height:1.45}.tc .bn{display:block}.tn{font-size:12px;color:var(--mu);font-weight:600}
+.ta{display:flex;gap:8px;margin-top:12px}.ta button{flex:1;margin:0;flex-direction:column;gap:0;line-height:1.2}.ta .bn{font-size:10.5px}
+.bl{list-style:none;margin:8px 0;padding:0}.bl li{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--bd)}
+.bl label{flex:1;display:flex;align-items:center;gap:10px;min-height:52px;margin:0;cursor:pointer}.bl .ic{flex:none}
+.bl .mv{display:flex;gap:4px}.bl .mv button{margin:0;font-size:18px}.bl li:not(.on) .mv{visibility:hidden}
+.bl .fix{min-height:52px;color:var(--mu)}.bl .fix .ic{vertical-align:-5px}
+.thm{display:flex;flex-wrap:wrap;gap:8px}.thm button{margin:0}.thm [aria-pressed=true]{outline:2px solid var(--acc);outline-offset:1px}
+@media(prefers-reduced-motion:reduce){.tc{transition:none}}
+.tc .bn::before,.hp .bn::before{content:none}

@@ -1,0 +1,6 @@
+:root[data-theme]{--bg:#fff;--sf:#fff;--sf2:#fff;--bd:#ccc;--tx:#000;--mu:#444;--sh:none;--link:#000}
+.side,.top,.bar,.sheet,.noprint,.skip{display:none!important}
+body{padding:0!important}
+main{padding:0;max-width:none}
+.ptitle{position:static;width:auto;height:auto;clip:auto}
+.card{box-shadow:none}.hero{background:#fff;color:#000}

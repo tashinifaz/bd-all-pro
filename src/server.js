@@ -1,6 +1,7 @@
 const express = require('express'), session = require('cookie-session'), bcrypt = require('bcryptjs'), crypto = require('crypto');
 const pool = require('./db'), migrate = require('../db/migrate');
 const { esc } = require('./lib');
+const { head, foot, logo, themeBtn, SPRITE, bn, ver } = require('./views');
 const app = express();
 const prod = process.env.NODE_ENV === 'production';
 const secret = process.env.SESSION_SECRET || (prod ? null : 'dev-secret');
@@ -9,17 +10,21 @@ app.set('trust proxy', 1); app.disable('x-powered-by');
 app.use(express.urlencoded({ extended: false, limit: '200kb' }));
 app.use(session({ name: 'bdap', keys: [secret], maxAge: 8 * 3600 * 1000, httpOnly: true, sameSite: 'lax', secure: prod }));
 app.use((req, res, next) => { res.set({ 'X-Frame-Options': 'DENY', 'X-Content-Type-Options': 'nosniff' }); next(); });
-require('./reports')(app); // /health is registered here, before auth
+app.use(require('./gzip')); // built-in zlib only; compresses text assets and HTML/JSON
+// shared assets (css/js/logo): public only, cached 7 days (file URLs carry ?v=mtime), registered before auth so /login can use them
+app.use(express.static(require('path').join(__dirname, '..', 'public'), { maxAge: '7d' }));
+require('./reports')(app); // /health and /version only, registered before auth
 // CSRF defence in depth: same-origin POSTs only (plus SameSite=Lax cookie)
 app.use((req, res, next) => {
-  if (req.method === 'POST') { const o = req.get('origin'); if (o && new URL(o).host !== req.get('host')) return res.status(403).send('Bad origin'); }
+  if (req.method === 'POST') { const o = req.get('origin'); if (o) { let h = ''; try { h = new URL(o).host; } catch (e) {} if (h !== req.get('host')) return res.status(403).send('Bad origin'); } }
   next();
 });
 const fails = new Map();
-const loginPage = (err) => `<!doctype html><meta name=viewport content="width=device-width,initial-scale=1"><title>Login</title><body style="font:16px system-ui;max-width:340px;margin:12vh auto;padding:12px">
-<h2>BD ALL PRO</h2>${err ? `<p style="background:#fee2e2;padding:8px">${esc(err)}</p>` : ''}<form method=post action=/login>
-<input name=username placeholder=Username autocomplete=username style="width:100%;padding:10px;margin:4px 0"><input name=password type=password placeholder=Password autocomplete=current-password style="width:100%;padding:10px;margin:4px 0">
-<button style="width:100%;padding:10px;background:#2563eb;color:#fff;border:0">Sign in</button></form>`;
+const loginPage = (err) => `<!doctype html><html lang=en><head>${head('Login · BD ALL PRO')}<link rel=stylesheet href="/login.css?v=${ver('login.css')}"></head><body>${SPRITE}${themeBtn('ib lt')}<div class=lg><div class=lc>
+<div class=lh>${logo(72)}<h1>BD ALL PRO</h1></div><div class=card>${err ? `<div class=err role=alert>${esc(err)}</div>` : ''}<form method=post action=/login>
+<label for=u>${bn('Username', 'ইউজারনেম')}</label><input id=u name=username placeholder="Username" autocomplete=username autocapitalize=none autofocus>
+<label for=p>${bn('Password', 'পাসওয়ার্ড')}</label><input id=p name=password type=password placeholder="Password" autocomplete=current-password>
+<button type=submit>${bn('Sign in', 'লগইন করুন')}</button></form></div></div></div>${foot()}</body></html>`;
 app.get('/login', (req, res) => res.send(loginPage()));
 app.post('/login', async (req, res) => {
   const ip = req.ip, f = fails.get(ip) || { n: 0, t: 0 };
@@ -30,7 +35,9 @@ app.post('/login', async (req, res) => {
 });
 app.get('/logout', (req, res) => { req.session = null; res.redirect('/login'); });
 app.use((req, res, next) => req.session?.uid ? next() : res.redirect('/login'));
-['catalog', 'purchases', 'orders', 'ops'].forEach(m => require('./' + m)(app));
+app.use(require('./access').load); // loads req.user (id, username, role, prefs, biz) once per request
+['catalog', 'purchases', 'orders', 'ops', 'dash', 'forms', 'scan', 'settings'].forEach(m => require('./' + m)(app));
+require('./reports').pages(app);
 app.use((err, req, res, next) => { console.error(err); res.status(500).send('Server error'); });
 
 async function ensureOwner() {

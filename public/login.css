@@ -1,0 +1,8 @@
+.lg{min-height:100vh;display:grid;place-items:center;padding:16px}
+.lc{width:100%;max-width:380px}
+.lc .card{padding:22px}
+.lh{text-align:center;margin-bottom:6px}
+.lh img{display:block;margin:0 auto 10px}
+.lh h1{margin:0;font-size:22px;letter-spacing:.06em}
+.lc button[type=submit]{width:100%;margin:8px 0 0}
+.lt{position:fixed;top:calc(12px + env(safe-area-inset-top));right:12px}

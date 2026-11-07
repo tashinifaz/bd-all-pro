@@ -23,7 +23,7 @@ module.exports = app => {
       <div><label>Serial/IMEI (tracked items)</label><textarea name=serials rows=1></textarea></div></div>`).join('');
     return page('Orders', rangeForm(req.query, '/orders', `<div><label>Status</label><select name=status><option value="">All</option>${statuses.map(x => `<option ${x === st ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
       <div><label>Customer / phone / order no</label><input name=s value="${esc(s)}"></div><div><label>Courier</label><input name=courier value="${esc(cr)}"></div>`) +
-      `<div class=card>${table(cols, list, ['order_no'])}</div><div class=card><h3>New order</h3><form method=post action="/orders">${token()}<div class=row>
+      `<div class=card>${table(cols, list, ['order_no'], { st: 1, empty: ['No orders yet', 'এখনো কোনো অর্ডার নেই', '/orders', 'order', '+ New order', 'নতুন অর্ডার'] })}</div><div class=card><h3>New order</h3><form method=post action="/orders">${token()}<div class=row>
       <div><label>Customer name</label><input name=name required></div><div><label>Phone</label><input name=phone required></div><div><label>Address</label><input name=address></div>
       <div><label>Channel</label><select name=channel><option>WhatsApp</option><option>Facebook</option><option>Phone</option><option>Other</option></select></div><div><label>Date</label><input type=date name=odate value="${today()}"></div></div>${line}
       <div class=row><div><label>Discount</label><input type=number step=0.01 min=0 name=discount value=0></div><div><label>Delivery fee charged</label><input type=number step=0.01 min=0 name=delivery_fee value=0></div>

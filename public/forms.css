@@ -1,0 +1,22 @@
+/* Pop-up form styles (Phase 3). Lazy-loaded by app.js on first openForm(). Uses core tokens from app.css. */
+.pf{display:block}
+.pf .row{display:grid;grid-template-columns:1fr;gap:0 10px}
+@media(min-width:900px){.pf .row{grid-template-columns:1fr 1fr}}
+.pf label{margin-top:6px}
+.pf label.chk{display:flex;align-items:center;min-height:44px;color:var(--tx)}
+.ln{padding:10px 12px;margin:8px 0;border:1px solid var(--bd);border-radius:16px;background:var(--sf)}
+.ln[hidden],.pf [hidden]{display:none}
+.ln select,.ln input{margin-bottom:6px}
+.more{margin:8px 0;border-radius:14px}
+.more>summary{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 4px;cursor:pointer;color:var(--mu);font-size:14px;font-weight:600;list-style:none}
+.more>summary::-webkit-details-marker{display:none}
+.more>summary::before{content:"＋";font-weight:700;color:var(--acc)}
+.more[open]>summary::before{content:"－"}
+.more>summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:10px}
+.more .mb{padding:2px 2px 6px}
+.pf .tot{min-height:0;margin:6px 0;font-size:16px}
+.pf .tot:empty{display:none}
+.pf .df button{flex:1 1 160px;flex-direction:column;gap:0;line-height:1.25;margin:0}
+.pf .df .bn{display:block;margin:0;font-size:10.5px}.pf .df .bn::before{content:none}
+.pf [data-add]{margin:4px 0 8px}
+@media(prefers-reduced-motion:reduce){.toast{transition:none}}

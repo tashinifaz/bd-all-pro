@@ -56,3 +56,22 @@ CREATE TABLE IF NOT EXISTS expenses(
   account_id INT REFERENCES financial_accounts(id), payee TEXT, note TEXT, ref TEXT);
 CREATE TABLE IF NOT EXISTS idem(token TEXT PRIMARY KEY, created_at TIMESTAMPTZ DEFAULT now());
 CREATE TABLE IF NOT EXISTS audit_log(id BIGSERIAL PRIMARY KEY, action TEXT, detail TEXT, created_at TIMESTAMPTZ DEFAULT now());
+
+-- Phase 4: optional product barcode for camera/keyboard scanning (additive)
+ALTER TABLE products ADD COLUMN IF NOT EXISTS barcode TEXT;
+CREATE INDEX IF NOT EXISTS products_barcode_idx ON products(barcode);
+-- Phase 5: staff groundwork + per-user preferences (additive)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'owner';
+CREATE TABLE IF NOT EXISTS user_prefs(user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE, key TEXT NOT NULL, value TEXT, PRIMARY KEY(user_id, key));
+-- Phase 6: indexes for dashboard / list queries (additive, idempotent)
+CREATE INDEX IF NOT EXISTS orders_odate_idx ON orders(odate);
+CREATE INDEX IF NOT EXISTS orders_status_idx ON orders(status);
+CREATE INDEX IF NOT EXISTS order_items_order_idx ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS repairs_status_idx ON repairs(status);
+CREATE INDEX IF NOT EXISTS expenses_edate_idx ON expenses(edate);
+CREATE INDEX IF NOT EXISTS purchases_pdate_idx ON purchases(pdate);
+CREATE INDEX IF NOT EXISTS purchase_items_purchase_idx ON purchase_items(purchase_id);
+CREATE INDEX IF NOT EXISTS account_txns_acc_date_idx ON account_txns(account_id, txn_date);
+CREATE INDEX IF NOT EXISTS stock_movements_product_idx ON stock_movements(product_id, id DESC);
+CREATE INDEX IF NOT EXISTS stock_movements_mtype_idx ON stock_movements(mtype, id DESC);
+CREATE INDEX IF NOT EXISTS product_serials_product_idx ON product_serials(product_id);

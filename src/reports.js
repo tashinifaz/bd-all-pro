@@ -26,27 +26,9 @@ module.exports = app => {
   app.get('/health', async (req, res) => { try { await require('./db').query('SELECT 1'); res.json({ ok: true }); } catch { res.status(500).json({ ok: false }); } });
   app.get('/version', (req, res) => res.json({ app: 'bd-all-pro', version: require('../package.json').version }));
 
-  app.get('/', get(async (req, db) => {
-    const t = today(), p = await pnl(db, t, t), inv = await inventoryValue(db), by = Object.fromEntries(inv.map(i => [i.bucket, i]));
-    const models = (await db.query('SELECT COUNT(*)::int n FROM products WHERE archived=false')).rows[0].n;
-    const total = inv.reduce((a, i) => a + i.qty, 0);
-    const rec = (await db.query(`SELECT COALESCE(SUM(cod_expected),0) v FROM orders WHERE status IN('Dispatched','Delivered','Partially Returned') AND settled=false`)).rows[0].v;
-    const pay = (await db.query('SELECT COALESCE(SUM(total-paid-credit),0) v FROM purchases')).rows[0].v;
-    const accs = (await db.query(`SELECT a.name, a.opening + COALESCE((SELECT SUM(amount) FROM account_txns t WHERE t.account_id=a.id),0) bal FROM financial_accounts a ORDER BY id`)).rows;
-    const low = (await db.query(`SELECT p.id,p.name,p.min_stock, COALESCE((SELECT qty FROM stock_balances WHERE product_id=p.id AND bucket='good'),0) good FROM products p WHERE archived=false AND min_stock>0
-      AND COALESCE((SELECT qty FROM stock_balances WHERE product_id=p.id AND bucket='good'),0) < min_stock`)).rows;
-    const recent = (await db.query(`SELECT 'Order' k, order_no r, status s, odate d FROM orders UNION ALL SELECT 'Purchase','PUR-'||id,'',pdate FROM purchases UNION ALL SELECT 'Repair',ref,status,found_date FROM repairs ORDER BY d DESC LIMIT 8`)).rows;
-    const card = (k, v, href) => `<a href="${href}" style="text-decoration:none;color:inherit"><div class=card><div class=k>${k}</div><div class=v>${v}</div></div></a>`;
-    return page('Dashboard', `<div class=grid>${card('Product models', models, '/products')}${card('Physical units', total, '/stock')}${card('Saleable units', by.good?.qty || 0, '/stock')}
-      ${card('Today sales (net)', taka(p.net), '/reports')}${card("Today expenses", taka(p.exp), '/expenses')}${card('Today gross profit', taka(p.gross), '/reports')}${card('Today net operating profit', taka(p.nop), '/reports')}
-      ${card('Customer receivables (COD pending)', taka(rec), '/orders?status=Dispatched')}${card('Supplier payables', taka(pay), '/purchases')}</div>
-      <div class=card><h3>Stock by condition (at cost)</h3>${table([['Condition', 'c'], ['Units', 'q'], ['Cost', 'v']], BUCKETS.map(b => ({ c: BL[b], q: by[b]?.qty || 0, v: taka(by[b]?.cost) })))}</div>
-      <div class=card><h3>Account balances</h3>${table([['Account', 'name'], ['Recorded balance', 'bal']], accs.map(a => ({ ...a, bal: taka(a.bal) })))}</div>
-      ${low.length ? `<div class=card><h3 class=warn>Low stock</h3>${table([['Product', 'name'], ['Good', 'good'], ['Min', 'min_stock']], low)}</div>` : ''}
-      <div class=card><h3>Recent activity</h3>${table([['Type', 'k'], ['Ref', 'r'], ['Status', 's'], ['Date', 'd']], recent)}</div>
-      ${p.pending ? `<p class=k>⚠ Figures are provisional: ${p.pending} order(s) have no courier settlement recorded yet.</p>` : ''}`, msg(req));
-  }));
-
+};
+// Registered AFTER the auth gate (server.js). The old '/' dashboard moved to src/dash.js (Phase 2).
+module.exports.pages = app => {
   app.get('/reports', get(async (req, db) => {
     const r = dateRange(req.query), p = await pnl(db, r.from, r.to);
     const rows = [['Gross item sales', p.items], ['− Discounts', -p.disc], ['− Refunds', -p.refunds], ['= Net sales', p.net], ['− COGS (average cost)', -p.cogs], ['= Gross profit', p.gross], ['+ Delivery fees charged', p.fees],
